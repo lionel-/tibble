@@ -51,7 +51,9 @@ trunc_mat_impl <- function(df, n, width, n_extra, rows) {
     shrunk <- shrink_mat(df, width, n_extra, var_names, var_types, rows, n)
   }
 
-  return(structure(c(shrunk, list(width = width)), class = "trunc_mat"))
+  structure(c(shrunk, list(
+    width = width, rows_total = rows, rows_min = nrow(df)
+  )), class = "trunc_mat")
 }
 
 #' @importFrom stats setNames
@@ -124,8 +126,7 @@ shrink_mat <- function(df, width, n_extra, var_names, var_types, rows, n) {
     extra <- c(extra[1:n_extra], setNames("...", more))
   }
 
-  list(table = shrunk, extra = extra, rows_missing = rows_missing,
-       rows_total = rows)
+  list(table = shrunk, extra = extra, rows_missing = rows_missing)
 }
 
 #' @export
@@ -141,6 +142,10 @@ print.trunc_mat <- function(x, ...) {
                big_mark(x$rows_total), " total)", width = x$width),
           "\n", sep ="")
     }
+  } else if (is.na(x$rows_total)) {
+    cat("(at least ", x$rows_min, " more rows)\n", sep = "")
+  } else {
+    cat("(", x$rows_total, " rows)\n", sep = "")
   }
 
   if (length(x$extra) > 0) {
