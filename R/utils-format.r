@@ -14,13 +14,21 @@
 #' @examples
 #' trunc_mat(mtcars)
 #'
-#' print(tbl_df(mtcars))
-#' print(tbl_df(mtcars), n = 1)
-#' print(tbl_df(mtcars), n = 3)
-#' print(tbl_df(mtcars), n = 100)
+#' print(as_data_frame(mtcars))
+#' print(as_data_frame(mtcars), n = 1)
+#' print(as_data_frame(mtcars), n = 3)
+#' print(as_data_frame(mtcars), n = 100)
 #'
 #' @name formatting
 NULL
+
+dim_desc <- function(x) {
+  d <- dim(x)
+  d2 <- big_mark(d)
+  d2[is.na(d)] <- "??"
+
+  paste0("[", paste0(d2, collapse = " x "), "]")
+}
 
 #' @export
 #' @rdname formatting
@@ -44,7 +52,7 @@ trunc_mat_impl <- function(df, n, width, n_extra, rows) {
   var_types <- vapply(df, type_sum, character(1))
   var_names <- names(df)
 
-  width <- width %||% tibble_opt("width") %||% getOption("width")
+  width <- tibble_width(width)
   if (ncol(df) == 0 || nrow(df) == 0) {
     shrunk <- list(table = NULL, extra = setNames(var_types, var_names))
   } else {
@@ -188,4 +196,8 @@ wrap <- function(..., indent = 0, width) {
 big_mark <- function(x, ...) {
   mark <- if (identical(getOption("OutDec"), ",")) "." else ","
   formatC(x, big.mark = mark, ...)
+}
+
+tibble_width <- function(width) {
+  width %||% tibble_opt("width") %||% getOption("width")
 }
