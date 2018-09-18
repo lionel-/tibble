@@ -18,37 +18,104 @@
 #' @export
 #' @rdname tibble
 lst <- function(...) {
-  xs <- quos(..., .named = 500L)
-  lst_quos(xs)
+  lst_impl(quos(...))
 }
 
-lst_quos <- function(xs, expand = FALSE) {
+lst_quos <- function(xs, recycle = FALSE) {
   n <- length(xs)
   if (n == 0) {
     return(list())
   }
 
-  # Evaluate each column in turn
-  col_names <- names2(xs)
-  output <- list_len(n)
-  names(output) <- character(n)
-  result <- output
+  nms <- names2(inputs)
+  result <- new_list(n, nms)
 
+  # Create mask in which we'll assign each result so expressions can
+  # refer to previous definitions
+  mask <- new_data_mask(new_environment())
+
+  # Used for creating rectangular outputs
+  mask_nrows(mask) <- NULL
+
+  # Evaluate each column in turn
   for (i in seq_len(n)) {
-    unique_output <- output[!duplicated(names(output)[seq_len(i)], fromLast = TRUE)]
-    res <- eval_tidy(xs[[i]], unique_output)
-    if (!is_null(res)) {
-      result[[i]] <- res
-      output[[i]] <- res
-      if (expand) output <- expand_lst(output, i)
+    value <- eval_tidy(inputs[[i]], mask)
+    name <- nms[[i]]
+
+    if (!is_null(value)) {
+      result[[i]] <- value
+      if (recycle) {
+        results <- mask_recycle(mask, result, value, name)
+      }
     }
-    names(output)[i] <- col_names[[i]]
+
+    mask[[name]] <- value
   }
 
-  set_names(result, names(output))
+  result
 }
 
-expand_lst <- function(output, i) {
+mask_nrows <- function(mask) {
+  mask[[".__tibble_nrows__."]]
+}
+`mask_nrows<-` <- function(mask, value) {
+  mask[[".__tibble_nrows__."]] <- value
+  mask
+}
+
+# Must update `result` as well!
+
+mask_recycle <- function(mask, result, value, name) {
+  nrows <- mask_nrows(mask)
+
+  if (is_null(nrows)) {
+    n <- NROW(value)
+    if (n != 1L) {
+      result <- mask_recycle_first(mask, result, n)
+    }
+
+    return(result)
+  }
+
+  browser()
+
+  mask[[nms[[i]]]] <- recycle(res, length(result[[1]]))
+
+  NULL
+}
+
+mask_ensure_recycled <- function(mask, result, n) {
+  mask_nrows(mask) <- n
+
+  for (i in env_names(mask)) {
+    mask[[i]] <- recycle(mask[[i]], n)
+  }
+
+  map(result, recycle, n)
+}
+
+recycle <- function(x, to) {
+  nrows <- NROW(x)
+
+  if (nrows == to) {
+    return(x)
+  }
+
+  dims <- dim(x)
+  ones <- rep(1L, to)
+
+  if (length(dims)) {
+    return(x[ones, ])
+  }
+
+  if (nrows == 1L) {
+    return(x[rep(1L, to)])
+  }
+
+  x
+}
+
+recycle_lst <- function(output, i) {
   idx_to_fix <- integer()
   if (i > 1L) {
     if (NROW(output[[i]]) == 1L && NROW(output[[1L]]) != 1L) {
@@ -61,13 +128,13 @@ expand_lst <- function(output, i) {
   }
 
   if (length(idx_to_fix) > 0L) {
-    output[idx_to_fix] <- expand_vecs(output[idx_to_fix], length(output[[idx_boilerplate]]))
+    output[idx_to_fix] <- recycle_vecs(output[idx_to_fix], length(output[[idx_boilerplate]]))
   }
 
   output
 }
 
-expand_vecs <- function(x, length) {
+recycle_vecs <- function(x, length) {
   ones <- rep(1L, length)
   map(x, `[`, ones)
 }

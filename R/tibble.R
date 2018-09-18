@@ -89,8 +89,8 @@
 tibble <- function(...,
                    .rows = NULL,
                    .name_repair = c("assert_unique", "unique", "syntactic", "none", "minimal")) {
-  xs <- quos(..., .named = TRUE)
-  as_tibble(lst_quos(xs, expand = TRUE), .rows = .rows, .name_repair = .name_repair)
+  out <- lst_impl(quos(...), recycle = TRUE)
+  as_tibble(out, .rows = .rows, .name_repair = .name_repair)
 }
 
 #' @export

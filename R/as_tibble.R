@@ -152,7 +152,7 @@ recycle_columns <- function(x, .rows) {
 
   short <- which(lengths == 1)
   if (has_length(short)) {
-    x[short] <- expand_vecs(x[short], nrow)
+    x[short] <- recycle_vecs(x[short], nrow)
   }
 
   new_valid_tibble(x, nrow)
